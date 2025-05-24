@@ -159,12 +159,28 @@ runs:
       if: steps.check_pr.outputs.should_skip != 'true'
       shell: bash
       run: |
-        # Ensure we have the commits from the PR
-        git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/origin/pr/${{ github.event.pull_request.number }}
+        # For merged PRs, the PR refs might not exist anymore, so we need to be more careful
+        echo "Fetching commits for PR #${{ github.event.pull_request.number }}"
         
-        # Also fetch the specific commits if they're not already present
-        git fetch origin ${{ github.event.pull_request.base.sha }} || true
-        git fetch origin ${{ github.event.pull_request.head.sha }} || true
+        # Try to fetch the PR ref if it exists (might not for merged PRs)
+        git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/origin/pr/${{ github.event.pull_request.number }} 2>/dev/null || true
+        
+        # Fetch the base and head commits directly
+        echo "Fetching base commit: ${{ github.event.pull_request.base.sha }}"
+        git fetch origin ${{ github.event.pull_request.base.sha }} 2>/dev/null || true
+        
+        echo "Fetching head commit: ${{ github.event.pull_request.head.sha }}"
+        git fetch origin ${{ github.event.pull_request.head.sha }} 2>/dev/null || true
+        
+        # For merged PRs, also try to fetch from the merge commit
+        if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "${{ github.event.pull_request.merge_commit_sha }}" ]; then
+          echo "Fetching merge commit: ${{ github.event.pull_request.merge_commit_sha }}"
+          git fetch origin ${{ github.event.pull_request.merge_commit_sha }} 2>/dev/null || true
+        fi
+        
+        # Ensure we have the latest from the base branch
+        echo "Fetching latest from base branch: ${{ github.event.pull_request.base.ref }}"
+        git fetch origin ${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }} || true
 
     - name: Check if documentation should be generated
       if: steps.check_pr.outputs.should_skip != 'true'
@@ -174,10 +190,24 @@ runs:
         # Get PR stats - try different approaches to ensure we can get the diff
         BASE_SHA="${{ github.event.pull_request.base.sha }}"
         HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
         
-        # Try to get the diff stats
-        if git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
+        # For merged PRs, we can use the merge commit to get accurate stats
+        if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "$MERGE_SHA" ] && git rev-parse --verify "$MERGE_SHA" >/dev/null 2>&1; then
+          echo "Using merge commit for diff: $MERGE_SHA"
+          # Get the parent of the merge commit (should be the base branch state)
+          MERGE_PARENT=$(git rev-parse ${MERGE_SHA}^1 2>/dev/null || echo "")
+          if [ -n "$MERGE_PARENT" ]; then
+            LINES_CHANGED=$(git diff --shortstat ${MERGE_PARENT}...${MERGE_SHA} | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
+            FILES_CHANGED=$(git diff --name-only ${MERGE_PARENT}...${MERGE_SHA} | wc -l | tr -d ' ')
+          else
+            # Fallback to comparing with base
+            LINES_CHANGED=$(git diff --shortstat origin/${{ github.event.pull_request.base.ref }}...${MERGE_SHA} | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
+            FILES_CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...${MERGE_SHA} | wc -l | tr -d ' ')
+          fi
+        elif git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
           # Both commits exist, use them directly
+          echo "Using base and head commits for diff"
           LINES_CHANGED=$(git diff --shortstat ${BASE_SHA}...${HEAD_SHA} | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
           FILES_CHANGED=$(git diff --name-only ${BASE_SHA}...${HEAD_SHA} | wc -l | tr -d ' ')
         else
@@ -230,8 +260,17 @@ runs:
         # Also prepare the git diff command based on available commits
         BASE_SHA="${{ github.event.pull_request.base.sha }}"
         HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
         
-        if git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
+        # For merged PRs, prefer using the merge commit
+        if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "$MERGE_SHA" ] && git rev-parse --verify "$MERGE_SHA" >/dev/null 2>&1; then
+          MERGE_PARENT=$(git rev-parse ${MERGE_SHA}^1 2>/dev/null || echo "")
+          if [ -n "$MERGE_PARENT" ]; then
+            DIFF_CMD="git diff ${MERGE_PARENT}...${MERGE_SHA}"
+          else
+            DIFF_CMD="git diff origin/${{ github.event.pull_request.base.ref }}...${MERGE_SHA}"
+          fi
+        elif git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
           DIFF_CMD="git diff ${BASE_SHA}...${HEAD_SHA}"
         else
           MERGE_BASE=$(git merge-base origin/${{ github.event.pull_request.base.ref }} HEAD || echo "")
