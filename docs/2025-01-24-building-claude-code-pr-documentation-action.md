@@ -8,7 +8,7 @@ title: Building the Claude Code PR Documentation Action
 
 ## Project Overview
 
-This document chronicles the development of the Claude Code PR Documentation Action, a GitHub Action that automatically generates comprehensive documentation for merged pull requests using Claude Code. The action was created to solve a common problem in software development: maintaining up-to-date, meaningful documentation for code changes.
+This document chronicles the development of the Claude Code PR Documentation Action by TextCortex, a GitHub Action that automatically generates comprehensive documentation for merged pull requests using Claude Code (by Anthropic). The action was created to solve a common problem in software development: maintaining up-to-date, meaningful documentation for code changes.
 
 ## Motivation
 
@@ -211,7 +211,7 @@ Chose composite action for:
 For teams wanting automatic documentation with minimal setup:
 
 ```yaml
-- uses: anthropics/claude-code-pr-autodoc-action@v1
+- uses: textcortex/claude-code-pr-autodoc-action@v1
   with:
     anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -266,3 +266,7 @@ By leveraging Claude Code's understanding of code and context, the action bridge
 ---
 
 _This document itself was generated using Claude Code, demonstrating the kind of comprehensive documentation the action can produce._
+
+## Attribution
+
+This action was developed by TextCortex and is built on top of the Claude Code Action by Anthropic. While Claude Code and the underlying AI technology are created and maintained by Anthropic, this specific GitHub Action for PR documentation is a TextCortex project.

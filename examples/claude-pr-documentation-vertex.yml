@@ -36,7 +36,7 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       # Run the documentation action
-      - uses: anthropics/claude-code-pr-autodoc-action@v1
+      - uses: textcortex/claude-code-pr-autodoc-action@v1
         with:
           # Use Vertex AI model
           model: "claude-3-7-sonnet@20250219"

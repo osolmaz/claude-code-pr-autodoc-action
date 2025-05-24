@@ -26,7 +26,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: anthropics/claude-code-pr-autodoc-action@v1
+      - uses: textcortex/claude-code-pr-autodoc-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 

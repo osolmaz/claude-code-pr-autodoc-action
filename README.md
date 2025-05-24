@@ -1,5 +1,8 @@
 # Claude Code PR Documentation Action
 
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Claude%20Code%20PR%20Documentation-blue?logo=github)](https://github.com/marketplace/actions/claude-code-pr-documentation)
+[![License](https://img.shields.io/github/license/textcortex/claude-code-pr-autodoc-action)](https://github.com/textcortex/claude-code-pr-autodoc-action/blob/main/LICENSE)
+
 Automatically generate comprehensive documentation for your merged pull requests using [Claude Code](https://claude.ai/code). This GitHub Action helps maintain consistent and detailed documentation by analyzing PR changes and creating well-structured markdown files.
 
 ## Features
@@ -46,7 +49,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: anthropics/claude-code-pr-autodoc-action@v1
+      - uses: textcortex/claude-code-pr-autodoc-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -76,7 +79,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - uses: anthropics/claude-code-pr-autodoc-action@v1
+      - uses: textcortex/claude-code-pr-autodoc-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           min_lines_changed: "100"
@@ -191,7 +194,7 @@ You can authenticate with Claude using any of these three methods:
     app-id: ${{ secrets.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-- uses: anthropics/claude-code-pr-autodoc-action@v1
+- uses: textcortex/claude-code-pr-autodoc-action@v1
   with:
     model: "anthropic.claude-3-7-sonnet-20250219-beta:0"
     use_bedrock: "true"
@@ -219,7 +222,7 @@ permissions:
     app-id: ${{ secrets.APP_ID }}
     private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-- uses: anthropics/claude-code-pr-autodoc-action@v1
+- uses: textcortex/claude-code-pr-autodoc-action@v1
   with:
     model: "claude-3-7-sonnet@20250219"
     use_vertex: "true"
@@ -311,3 +314,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 🤖 Built with [Claude Code](https://claude.ai/code)
+
+## About
+
+This action was developed by [TextCortex](https://github.com/textcortex) and is powered by [Claude Code](https://claude.ai/code) from Anthropic. While the underlying AI technology is provided by Anthropic, this specific GitHub Action implementation is maintained by TextCortex.

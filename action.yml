@@ -1,6 +1,6 @@
 name: "Claude Code Automatic PR Documentation Generator"
 description: "Automatically generate comprehensive documentation for merged PRs using Claude Code"
-author: "Anthropic"
+author: "TextCortex"
 branding:
   icon: "file-text"
   color: "purple"
