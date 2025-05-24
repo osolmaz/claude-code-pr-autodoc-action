@@ -10,6 +10,7 @@ on:
 jobs:
   generate-documentation:
     # Only run for merged PRs that don't have the 'skip-docs' label
+    # The action itself will also check for bot-created PRs to prevent infinite loops
     if: |
       github.event.pull_request.merged == true &&
       !contains(github.event.pull_request.labels.*.name, 'skip-docs')

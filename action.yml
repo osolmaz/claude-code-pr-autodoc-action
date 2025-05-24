@@ -111,7 +111,45 @@ inputs:
 runs:
   using: 'composite'
   steps:
+    - name: Check if PR should be documented
+      id: check_pr
+      shell: bash
+      run: |
+        # Skip if PR was created by Claude or any bot
+        if [[ "${{ github.event.pull_request.user.login }}" == "claude[bot]" ]] || \
+           [[ "${{ github.event.pull_request.user.login }}" == "claude-code[bot]" ]] || \
+           [[ "${{ github.event.pull_request.user.type }}" == "Bot" ]]; then
+          echo "skip_reason=PR created by bot" >> $GITHUB_OUTPUT
+          echo "should_skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Skip if PR title indicates it's a documentation PR
+        if [[ "${{ github.event.pull_request.title }}" == "docs: Add documentation for PR"* ]]; then
+          echo "skip_reason=PR is already a documentation PR" >> $GITHUB_OUTPUT
+          echo "should_skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # Skip if PR has 'automated' or 'documentation' label
+        if [[ "${{ contains(github.event.pull_request.labels.*.name, 'automated') }}" == "true" ]] || \
+           [[ "${{ contains(github.event.pull_request.labels.*.name, 'documentation') }}" == "true" ]]; then
+          echo "skip_reason=PR has automated or documentation label" >> $GITHUB_OUTPUT
+          echo "should_skip=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        echo "should_skip=false" >> $GITHUB_OUTPUT
+
+    - name: Log skip reason
+      if: steps.check_pr.outputs.should_skip == 'true'
+      shell: bash
+      run: |
+        echo "⚠️ Skipping documentation generation: ${{ steps.check_pr.outputs.skip_reason }}"
+        echo "This prevents infinite loops when documenting PRs created by bots or documentation PRs themselves."
+
     - name: Checkout repository
+      if: steps.check_pr.outputs.should_skip != 'true'
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
@@ -119,6 +157,7 @@ runs:
         token: ${{ inputs.github_token }}
 
     - name: Check if documentation should be generated
+      if: steps.check_pr.outputs.should_skip != 'true'
       id: check_changes
       shell: bash
       run: |
@@ -140,7 +179,7 @@ runs:
         fi
 
     - name: Create documentation branch
-      if: steps.check_changes.outputs.should_document == 'true'
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       shell: bash
       run: |
         git config --global user.name "Claude Code[bot]"
@@ -150,7 +189,7 @@ runs:
         echo "DOCS_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
 
     - name: Generate PR Documentation with Claude Code
-      if: steps.check_changes.outputs.should_document == 'true'
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       uses: anthropics/claude-code-action@beta
       with:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
@@ -165,7 +204,7 @@ runs:
         disallowed_tools: ${{ inputs.disallowed_tools }}
 
     - name: Clean up unwanted files
-      if: steps.check_changes.outputs.should_document == 'true'
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       shell: bash
       run: |
         # Remove any output.txt or other temporary files that might have been created
@@ -176,7 +215,7 @@ runs:
         git clean -fd --exclude=${{ inputs.documentation_directory }}/
 
     - name: Commit and push documentation
-      if: steps.check_changes.outputs.should_document == 'true'
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       shell: bash
       run: |
         # Check if any documentation files were created
@@ -190,7 +229,7 @@ runs:
         fi
 
     - name: Create Pull Request
-      if: steps.check_changes.outputs.should_document == 'true'
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       uses: peter-evans/create-pull-request@v6
       with:
         token: ${{ inputs.github_token }}

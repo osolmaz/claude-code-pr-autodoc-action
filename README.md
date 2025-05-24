@@ -60,6 +60,8 @@ on:
 
 jobs:
   generate-documentation:
+    # Only run for merged PRs that don't have the 'skip-docs' label
+    # The action itself will also check for bot-created PRs to prevent loops
     if: |
       github.event.pull_request.merged == true &&
       !contains(github.event.pull_request.labels.*.name, 'skip-docs')
@@ -252,9 +254,12 @@ All commits made by Claude through this action are automatically signed with com
 
 The action automatically skips documentation for:
 - Unmerged PRs
-- PRs below the configured thresholds
+- PRs created by bots (including Claude Code itself) - prevents infinite loops
+- PRs with titles starting with "docs: Add documentation for PR"
+- PRs with "automated" or "documentation" labels
+- PRs below the configured thresholds (lines/files changed)
 
-You can add additional filters in your workflow configuration.
+You can add additional filters in your workflow configuration using the `if` condition on the job.
 
 ## Troubleshooting
 
