@@ -44,7 +44,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - uses: anthropics/claude-code-pr-autodoc-action@v1
         with:
@@ -74,17 +74,17 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - uses: anthropics/claude-code-pr-autodoc-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          min_lines_changed: '100'
-          min_files_changed: '3'
-          documentation_directory: 'docs/pull-requests'
-          commit_tags: '[skip ci] [auto-doc]'
-          pr_title_tags: '[Documentation]'
-          timeout_minutes: '15'
+          min_lines_changed: "100"
+          min_files_changed: "3"
+          documentation_directory: "docs/pull-requests"
+          commit_tags: "[skip ci] [auto-doc]"
+          pr_title_tags: "[Documentation]"
+          timeout_minutes: "15"
           custom_instructions: |
             Focus on:
             - Business impact and user-facing changes
@@ -92,35 +92,36 @@ jobs:
             - Performance implications
             - Security considerations
             - Testing coverage
-            
+
             Be concise but thorough.
 ```
 
 ## Inputs
 
-| Input | Description | Required | Default |
-|-------|-------------|----------|---------|
-| `anthropic_api_key` | Anthropic API key (required for direct API, not needed for Bedrock/Vertex) | No* | - |
-| `min_lines_changed` | Minimum lines changed to trigger documentation | No | `50` |
-| `min_files_changed` | Minimum files changed to trigger documentation | No | `1` |
-| `documentation_prompt` | Custom prompt for Claude | No | See [default prompt](#default-prompt) |
-| `commit_tags` | Tags to append to commit message | No | `[skip ci]` |
-| `pr_title_tags` | Tags to append to PR title | No | `[skip ci]` |
-| `documentation_directory` | Directory for documentation files | No | `docs/prs` |
-| `timeout_minutes` | Timeout for Claude (minutes) | No | `10` |
-| `github_token` | GitHub token for Claude to operate with. **Only include this if you're connecting a custom GitHub app of your own!** | No | - |
-| `model` | Model to use (provider-specific format required for Bedrock/Vertex) | No | - |
-| `use_bedrock` | Use Amazon Bedrock with OIDC authentication instead of direct Anthropic API | No | `false` |
-| `use_vertex` | Use Google Vertex AI with OIDC authentication instead of direct Anthropic API | No | `false` |
-| `allowed_tools` | Additional tools for Claude to use (the base GitHub tools will always be included) | No | "" |
-| `disallowed_tools` | Tools that Claude should never use | No | "" |
-| `custom_instructions` | Additional custom instructions to include in the prompt for Claude | No | "" |
+| Input                     | Description                                                                                                          | Required | Default                               |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------- |
+| `anthropic_api_key`       | Anthropic API key (required for direct API, not needed for Bedrock/Vertex)                                           | No\*     | -                                     |
+| `min_lines_changed`       | Minimum lines changed to trigger documentation                                                                       | No       | `50`                                  |
+| `min_files_changed`       | Minimum files changed to trigger documentation                                                                       | No       | `1`                                   |
+| `documentation_prompt`    | Custom prompt for Claude                                                                                             | No       | See [default prompt](#default-prompt) |
+| `commit_tags`             | Tags to append to commit message                                                                                     | No       | `[skip ci]`                           |
+| `pr_title_tags`           | Tags to append to PR title                                                                                           | No       | `[skip ci]`                           |
+| `documentation_directory` | Directory for documentation files                                                                                    | No       | `docs/prs`                            |
+| `timeout_minutes`         | Timeout for Claude (minutes)                                                                                         | No       | `10`                                  |
+| `github_token`            | GitHub token for Claude to operate with. **Only include this if you're connecting a custom GitHub app of your own!** | No       | -                                     |
+| `model`                   | Model to use (provider-specific format required for Bedrock/Vertex)                                                  | No       | -                                     |
+| `use_bedrock`             | Use Amazon Bedrock with OIDC authentication instead of direct Anthropic API                                          | No       | `false`                               |
+| `use_vertex`              | Use Google Vertex AI with OIDC authentication instead of direct Anthropic API                                        | No       | `false`                               |
+| `allowed_tools`           | Additional tools for Claude to use (the base GitHub tools will always be included)                                   | No       | ""                                    |
+| `disallowed_tools`        | Tools that Claude should never use                                                                                   | No       | ""                                    |
+| `custom_instructions`     | Additional custom instructions to include in the prompt for Claude                                                   | No       | ""                                    |
 
 \*Required when using direct Anthropic API (default and when not using Bedrock or Vertex)
 
 ### Default Prompt
 
 The default prompt instructs Claude to:
+
 1. Analyze the PR changes using git commands
 2. Create a properly formatted markdown file with YAML frontmatter
 3. Document purpose, key modifications, technical details, impact, and any breaking changes
@@ -129,6 +130,7 @@ The default prompt instructs Claude to:
 ## Outputs
 
 The action creates:
+
 - A markdown file in the specified directory with the format: `YYYY-MM-DD-descriptive-title.md`
 - A new PR containing the documentation
 - Proper git history linking back to the original PR
@@ -153,6 +155,7 @@ This PR introduces Redis caching to improve API response times and reduce databa
 ## Key Modifications
 
 1. **Added Redis client configuration** (`src/config/redis.js`)
+
    - Configured connection pooling
    - Implemented retry logic
 
@@ -269,6 +272,7 @@ if: |
 ```
 
 This ensures:
+
 - No compute resources are wasted on PRs that won't be documented
 - No infinite loops where documentation PRs trigger more documentation
 - Clear filtering at the workflow level for better visibility
@@ -276,6 +280,7 @@ This ensures:
 ### Built-in Filters
 
 The action also includes internal checks for:
+
 - Unmerged PRs
 - PRs created by bots (including Claude Code itself)
 - PRs with titles starting with "docs: Add documentation for PR"

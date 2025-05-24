@@ -18,7 +18,7 @@ jobs:
       contents: write
       pull-requests: write
       id-token: write # Required for OIDC
-    
+
     steps:
       # Configure AWS credentials using OIDC
       - name: Configure AWS Credentials
@@ -26,7 +26,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: us-west-2
-      
+
       # Generate GitHub App token if using custom app
       - name: Generate GitHub App token
         id: app-token
@@ -34,7 +34,7 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-      
+
       # Run the documentation action
       - uses: anthropics/claude-code-pr-autodoc-action@v1
         with:
@@ -42,7 +42,7 @@ jobs:
           model: "anthropic.claude-3-7-sonnet-20250219-beta:0"
           use_bedrock: "true"
           github_token: ${{ steps.app-token.outputs.token }}
-          
+
           # Other configuration options
-          min_lines_changed: '50'
-          documentation_directory: 'docs/prs'
+          min_lines_changed: "50"
+          documentation_directory: "docs/prs"

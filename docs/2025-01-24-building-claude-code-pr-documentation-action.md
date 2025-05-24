@@ -38,6 +38,7 @@ The Claude Code PR Documentation Action addresses these challenges by:
 The project began as a generic "Claude AI" action but was realigned to be part of the Claude Code ecosystem. This involved:
 
 1. **Rebranding from Claude AI to Claude Code**
+
    - Updated all references throughout the codebase
    - Changed bot attribution from "Claude[bot]" to "Claude Code[bot]"
    - Aligned with the official Claude Code Action patterns
@@ -53,7 +54,8 @@ The project began as a generic "Claude AI" action but was realigned to be part o
 
 **Challenge**: GitHub Actions composite actions don't allow using `${{ inputs.variable }}` within input default values.
 
-**Solution**: 
+**Solution**:
+
 - Used placeholder values in the default prompt
 - Created a dynamic prompt preparation step that replaces placeholders at runtime
 - Implemented string substitution: `PROMPT="${PROMPT//docs\/prs/${{ inputs.documentation_directory }}}"`
@@ -63,6 +65,7 @@ The project began as a generic "Claude AI" action but was realigned to be part o
 **Challenge**: GitHub removes `refs/pull/*/merge` references after PRs are merged, causing git fetch failures.
 
 **Solution**:
+
 ```bash
 # Try multiple approaches to fetch PR commits
 git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/origin/pr/${{ github.event.pull_request.number }} 2>/dev/null || true
@@ -81,6 +84,7 @@ fi
 **Solution**: Implemented multi-layer protection:
 
 1. **Workflow-level filtering** (prevents container spin-up):
+
    ```yaml
    if: |
      github.event.pull_request.merged == true &&
@@ -98,6 +102,7 @@ fi
 **Challenge**: The initial regex-based approach for counting changed lines failed when PRs had only insertions or only deletions.
 
 **Solution**: Replaced with an awk script that handles all cases:
+
 ```bash
 LINES_CHANGED=$(git diff --shortstat ${BASE_SHA}...${HEAD_SHA} | \
   awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
@@ -112,6 +117,7 @@ The action was enhanced to support multiple Claude providers:
 3. **Google Vertex AI** with OIDC authentication
 
 Each provider requires specific:
+
 - Model naming conventions
 - Authentication flows
 - Permission configurations
@@ -119,11 +125,13 @@ Each provider requires specific:
 ### Security Considerations
 
 1. **API Key Protection**
+
    - Enforced use of GitHub Secrets
    - Clear warnings against hardcoding keys
    - Documentation emphasizes security best practices
 
 2. **GitHub App Permissions**
+
    - Minimal required permissions
    - Scoped to repository only
    - Short-lived tokens
@@ -137,6 +145,7 @@ Each provider requires specific:
 ### Composite Action vs. JavaScript/Docker
 
 Chose composite action for:
+
 - Simplicity and maintainability
 - Direct use of existing Claude Code Action
 - No additional runtime requirements
@@ -168,24 +177,28 @@ Chose composite action for:
 ## Key Features Implemented
 
 ### 1. Smart Filtering
+
 - Minimum lines/files changed thresholds
 - Label-based exclusions
 - Bot detection
 - Title pattern matching
 
 ### 2. Flexible Documentation
+
 - Customizable output directory
 - YAML frontmatter for metadata
 - Consistent naming format
 - Custom instructions support
 
 ### 3. Robust Git Operations
+
 - Multiple fallback strategies for commits
 - Merge commit handling
 - Branch management
 - Clean working directory
 
 ### 4. Claude Code Integration
+
 - Full tool access (with restrictions)
 - Custom allowed/disallowed tools
 - Model selection
@@ -194,7 +207,9 @@ Chose composite action for:
 ## Usage Patterns
 
 ### Basic Usage
+
 For teams wanting automatic documentation with minimal setup:
+
 ```yaml
 - uses: anthropics/claude-code-pr-autodoc-action@v1
   with:
@@ -202,14 +217,18 @@ For teams wanting automatic documentation with minimal setup:
 ```
 
 ### Advanced Usage
+
 For teams with specific requirements:
+
 - Custom documentation directories by date
 - Specific change thresholds
 - Custom instructions for domain-specific documentation
 - Integration with existing CI/CD pipelines
 
 ### Enterprise Usage
+
 With Bedrock or Vertex AI:
+
 - OIDC authentication
 - Cross-region inference
 - Compliance with data residency requirements
@@ -235,6 +254,7 @@ While not implemented, potential enhancements could include:
 ## Impact
 
 This action enables teams to:
+
 - Build comprehensive documentation archives automatically
 - Reduce onboarding time for new developers
 - Maintain better compliance and audit trails
@@ -245,4 +265,4 @@ By leveraging Claude Code's understanding of code and context, the action bridge
 
 ---
 
-*This document itself was generated using Claude Code, demonstrating the kind of comprehensive documentation the action can produce.*
+_This document itself was generated using Claude Code, demonstrating the kind of comprehensive documentation the action can produce._
