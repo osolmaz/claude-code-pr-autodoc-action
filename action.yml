@@ -153,17 +153,47 @@ runs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        ref: ${{ github.event.pull_request.base.ref }}
         token: ${{ inputs.github_token }}
+
+    - name: Fetch PR commits
+      if: steps.check_pr.outputs.should_skip != 'true'
+      shell: bash
+      run: |
+        # Ensure we have the commits from the PR
+        git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/origin/pr/${{ github.event.pull_request.number }}
+        
+        # Also fetch the specific commits if they're not already present
+        git fetch origin ${{ github.event.pull_request.base.sha }} || true
+        git fetch origin ${{ github.event.pull_request.head.sha }} || true
 
     - name: Check if documentation should be generated
       if: steps.check_pr.outputs.should_skip != 'true'
       id: check_changes
       shell: bash
       run: |
-        # Get PR stats
-        LINES_CHANGED=$(git diff --shortstat ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep -E "[0-9]+ insertion|[0-9]+ deletion" | sed -E 's/.*([0-9]+) insertion.*([0-9]+) deletion.*/\1 \2/' | awk '{print $1 + $2}' || echo "0")
-        FILES_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | wc -l | tr -d ' ')
+        # Get PR stats - try different approaches to ensure we can get the diff
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        
+        # Try to get the diff stats
+        if git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
+          # Both commits exist, use them directly
+          LINES_CHANGED=$(git diff --shortstat ${BASE_SHA}...${HEAD_SHA} | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
+          FILES_CHANGED=$(git diff --name-only ${BASE_SHA}...${HEAD_SHA} | wc -l | tr -d ' ')
+        else
+          # Fallback: try to use merge base
+          echo "Warning: Could not find exact commits, using merge-base approach"
+          MERGE_BASE=$(git merge-base origin/${{ github.event.pull_request.base.ref }} HEAD || echo "")
+          if [ -n "$MERGE_BASE" ]; then
+            LINES_CHANGED=$(git diff --shortstat ${MERGE_BASE}...HEAD | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
+            FILES_CHANGED=$(git diff --name-only ${MERGE_BASE}...HEAD | wc -l | tr -d ' ')
+          else
+            # Last resort: just check current changes
+            echo "Warning: Using simplified diff check"
+            LINES_CHANGED=$(git diff --shortstat origin/${{ github.event.pull_request.base.ref }}...HEAD | awk '{ins=0; del=0; for(i=1;i<=NF;i++){if($i ~ /insertion/) ins=$(i-1); if($i ~ /deletion/) del=$(i-1)} print ins+del}' || echo "0")
+            FILES_CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | wc -l | tr -d ' ')
+          fi
+        fi
         
         echo "Lines changed: $LINES_CHANGED"
         echo "Files changed: $FILES_CHANGED"
@@ -197,6 +227,23 @@ runs:
         PROMPT="${{ inputs.documentation_prompt }}"
         PROMPT="${PROMPT//docs\/prs/${{ inputs.documentation_directory }}}"
         
+        # Also prepare the git diff command based on available commits
+        BASE_SHA="${{ github.event.pull_request.base.sha }}"
+        HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+        
+        if git rev-parse --verify "$BASE_SHA" >/dev/null 2>&1 && git rev-parse --verify "$HEAD_SHA" >/dev/null 2>&1; then
+          DIFF_CMD="git diff ${BASE_SHA}...${HEAD_SHA}"
+        else
+          MERGE_BASE=$(git merge-base origin/${{ github.event.pull_request.base.ref }} HEAD || echo "")
+          if [ -n "$MERGE_BASE" ]; then
+            DIFF_CMD="git diff ${MERGE_BASE}...HEAD"
+          else
+            DIFF_CMD="git diff origin/${{ github.event.pull_request.base.ref }}...HEAD"
+          fi
+        fi
+        
+        echo "diff_command=$DIFF_CMD" >> $GITHUB_OUTPUT
+        
         # Save to output
         echo "prompt<<EOF" >> $GITHUB_OUTPUT
         echo "$PROMPT" >> $GITHUB_OUTPUT
@@ -213,7 +260,7 @@ runs:
         model: ${{ inputs.model }}
         use_bedrock: ${{ inputs.use_bedrock }}
         use_vertex: ${{ inputs.use_vertex }}
-        allowed_tools: "Bash(git status),Bash(git log --oneline -10),Bash(git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}),Bash(git branch --show-current),Bash(mkdir -p ${{ inputs.documentation_directory }}),Write,Read,Glob,Grep,Edit,${{ inputs.allowed_tools }}"
+        allowed_tools: "Bash(git status),Bash(git log --oneline -10),Bash(${{ steps.prepare_prompt.outputs.diff_command }}),Bash(git branch --show-current),Bash(mkdir -p ${{ inputs.documentation_directory }}),Write,Read,Glob,Grep,Edit,${{ inputs.allowed_tools }}"
         disallowed_tools: ${{ inputs.disallowed_tools }}
 
     - name: Clean up unwanted files
