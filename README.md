@@ -47,6 +47,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write  # Required for OIDC authentication
 
     steps:
       - uses: textcortex/claude-code-pr-autodoc-action@v1
@@ -77,6 +78,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write  # Required for OIDC authentication
 
     steps:
       - uses: textcortex/claude-code-pr-autodoc-action@v1
