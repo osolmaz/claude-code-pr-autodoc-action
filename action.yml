@@ -34,8 +34,8 @@ inputs:
       Instructions:
       1. Run: git log --oneline -10 to see recent commits
       2. Run: git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} to see what changed in PR #${{ github.event.pull_request.number }}
-      3. Create directory if needed: mkdir -p ${{ inputs.documentation_directory }}
-      4. Create a documentation file with filename format: ${{ inputs.documentation_directory }}/YYYY-MM-DD-appropriate-title-for-the-pr.md
+      3. Create directory if needed: mkdir -p docs/prs
+      4. Create a documentation file with filename format: docs/prs/YYYY-MM-DD-appropriate-title-for-the-pr.md
       5. Include this YAML front matter at the top:
          ---
          author: Claude
@@ -188,14 +188,27 @@ runs:
         git checkout -b $BRANCH_NAME
         echo "DOCS_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
 
+    - name: Prepare documentation prompt
+      if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
+      id: prepare_prompt
+      shell: bash
+      run: |
+        # Replace placeholder directory paths in the default prompt
+        PROMPT="${{ inputs.documentation_prompt }}"
+        PROMPT="${PROMPT//docs\/prs/${{ inputs.documentation_directory }}}"
+        
+        # Save to output
+        echo "prompt<<EOF" >> $GITHUB_OUTPUT
+        echo "$PROMPT" >> $GITHUB_OUTPUT
+        echo "${{ inputs.custom_instructions }}" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
     - name: Generate PR Documentation with Claude Code
       if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       uses: anthropics/claude-code-action@beta
       with:
         anthropic_api_key: ${{ inputs.anthropic_api_key }}
-        direct_prompt: |
-          ${{ inputs.documentation_prompt }}
-          ${{ inputs.custom_instructions }}
+        direct_prompt: ${{ steps.prepare_prompt.outputs.prompt }}
         timeout_minutes: ${{ inputs.timeout_minutes }}
         model: ${{ inputs.model }}
         use_bedrock: ${{ inputs.use_bedrock }}
