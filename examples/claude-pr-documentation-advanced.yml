@@ -9,11 +9,17 @@ on:
 
 jobs:
   generate-documentation:
-    # Only run for merged PRs that don't have the 'skip-docs' label
-    # The action itself will also check for bot-created PRs to prevent infinite loops
+    # Only run for merged PRs that meet all conditions (prevents compute waste)
+    # - PR must be merged (not just closed)
+    # - PR must not be created by a bot
+    # - PR title must not indicate it's already a documentation PR
+    # - PR must not have 'skip-docs' or 'automated' labels
     if: |
       github.event.pull_request.merged == true &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-docs')
+      github.event.pull_request.user.type != 'Bot' &&
+      !startsWith(github.event.pull_request.title, 'docs: Add documentation for PR') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-docs') &&
+      !contains(github.event.pull_request.labels.*.name, 'automated')
     runs-on: ubuntu-latest
     permissions:
       contents: write

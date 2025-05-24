@@ -34,7 +34,12 @@ on:
 
 jobs:
   generate-documentation:
-    if: github.event.pull_request.merged == true
+    # Only run when PR is merged and not created by bots
+    # This prevents infinite loops and saves compute resources
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.type != 'Bot' &&
+      !startsWith(github.event.pull_request.title, 'docs: Add documentation for PR')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -252,14 +257,32 @@ All commits made by Claude through this action are automatically signed with com
 
 ## Filtering and Exclusions
 
-The action automatically skips documentation for:
+### Important: Preventing Infinite Loops and Saving Compute
+
+To prevent infinite documentation loops and save GitHub Actions compute resources, **always include proper `if` conditions in your workflow**:
+
+```yaml
+if: |
+  github.event.pull_request.merged == true &&
+  github.event.pull_request.user.type != 'Bot' &&
+  !startsWith(github.event.pull_request.title, 'docs: Add documentation for PR')
+```
+
+This ensures:
+- No compute resources are wasted on PRs that won't be documented
+- No infinite loops where documentation PRs trigger more documentation
+- Clear filtering at the workflow level for better visibility
+
+### Built-in Filters
+
+The action also includes internal checks for:
 - Unmerged PRs
-- PRs created by bots (including Claude Code itself) - prevents infinite loops
+- PRs created by bots (including Claude Code itself)
 - PRs with titles starting with "docs: Add documentation for PR"
 - PRs with "automated" or "documentation" labels
 - PRs below the configured thresholds (lines/files changed)
 
-You can add additional filters in your workflow configuration using the `if` condition on the job.
+However, these internal checks run **after** the container starts, so workflow-level conditions are preferred for efficiency.
 
 ## Troubleshooting
 

@@ -8,7 +8,11 @@ on:
 
 jobs:
   generate-documentation:
-    if: github.event.pull_request.merged == true
+    # Only run when PR is merged and not created by bots (prevents compute waste)
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.type != 'Bot' &&
+      !startsWith(github.event.pull_request.title, 'docs: Add documentation for PR')
     runs-on: ubuntu-latest
     permissions:
       contents: write
