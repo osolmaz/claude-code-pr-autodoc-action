@@ -249,7 +249,12 @@ runs:
       run: |
         git config --global user.name "Claude Code[bot]"
         git config --global user.email "noreply@anthropic.com"
-        BRANCH_NAME="docs/pr-${{ github.event.pull_request.number }}-documentation"
+        
+        # Use timestamp to create unique branch names for each run
+        TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+        BRANCH_NAME="docs/pr-${{ github.event.pull_request.number }}-${TIMESTAMP}"
+        
+        # Create a fresh branch from the current state
         git checkout -b $BRANCH_NAME
         echo "DOCS_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
 
