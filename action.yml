@@ -1,27 +1,27 @@
-name: 'Claude Code PR Documentation'
-description: 'Automatically generate comprehensive documentation for merged PRs using Claude Code'
-author: 'Anthropic'
+name: "Claude Code Automatic PR Documentation Generator"
+description: "Automatically generate comprehensive documentation for merged PRs using Claude Code"
+author: "Anthropic"
 branding:
-  icon: 'file-text'
-  color: 'purple'
+  icon: "file-text"
+  color: "purple"
 
 inputs:
   anthropic_api_key:
-    description: 'Anthropic API key (required for direct API, not needed for Bedrock/Vertex)'
+    description: "Anthropic API key (required for direct API, not needed for Bedrock/Vertex)"
     required: false
-  
+
   min_lines_changed:
-    description: 'Minimum number of lines changed to trigger documentation'
+    description: "Minimum number of lines changed to trigger documentation"
     required: false
-    default: '50'
-  
+    default: "50"
+
   min_files_changed:
-    description: 'Minimum number of files changed to trigger documentation'
+    description: "Minimum number of files changed to trigger documentation"
     required: false
-    default: '1'
-  
+    default: "1"
+
   documentation_prompt:
-    description: 'Custom prompt for Claude to generate documentation'
+    description: "Custom prompt for Claude to generate documentation"
     required: false
     default: |
       You are helping to automatically document a merged PR. Create comprehensive documentation for the merged PR #${{ github.event.pull_request.number }}.
@@ -53,63 +53,63 @@ inputs:
          - Related issues or follow-up tasks
 
       IMPORTANT: Just create and write the documentation file. Do NOT commit or create any branches/PRs - the workflow will handle that.
-  
+
   commit_tags:
-    description: 'Tags to append to the commit message'
+    description: "Tags to append to the commit message"
     required: false
-    default: '[skip ci]'
-  
+    default: "[skip ci]"
+
   pr_title_tags:
-    description: 'Tags to append to the PR title'
+    description: "Tags to append to the PR title"
     required: false
-    default: '[skip ci]'
-  
+    default: "[skip ci]"
+
   documentation_directory:
-    description: 'Directory where documentation will be created'
+    description: "Directory where documentation will be created"
     required: false
-    default: 'docs/prs'
-  
+    default: "docs/prs"
+
   timeout_minutes:
-    description: 'Timeout for Claude to generate documentation (in minutes)'
+    description: "Timeout for Claude to generate documentation (in minutes)"
     required: false
-    default: '10'
-  
+    default: "10"
+
   github_token:
-    description: 'GitHub token for Claude to operate with. Only include this if you''re connecting a custom GitHub app of your own!'
+    description: "GitHub token for Claude to operate with. Only include this if you're connecting a custom GitHub app of your own!"
     required: false
     default: ${{ github.token }}
-  
+
   model:
-    description: 'Model to use (provider-specific format required for Bedrock/Vertex)'
+    description: "Model to use (provider-specific format required for Bedrock/Vertex)"
     required: false
-  
+
   use_bedrock:
-    description: 'Use Amazon Bedrock with OIDC authentication instead of direct Anthropic API'
+    description: "Use Amazon Bedrock with OIDC authentication instead of direct Anthropic API"
     required: false
-    default: 'false'
-  
+    default: "false"
+
   use_vertex:
-    description: 'Use Google Vertex AI with OIDC authentication instead of direct Anthropic API'
+    description: "Use Google Vertex AI with OIDC authentication instead of direct Anthropic API"
     required: false
-    default: 'false'
-  
+    default: "false"
+
   allowed_tools:
-    description: 'Additional tools for Claude to use (the base GitHub tools will always be included)'
+    description: "Additional tools for Claude to use (the base GitHub tools will always be included)"
     required: false
-    default: ''
-  
+    default: ""
+
   disallowed_tools:
-    description: 'Tools that Claude should never use'
+    description: "Tools that Claude should never use"
     required: false
-    default: ''
-  
+    default: ""
+
   custom_instructions:
-    description: 'Additional custom instructions to include in the prompt for Claude'
+    description: "Additional custom instructions to include in the prompt for Claude"
     required: false
-    default: ''
+    default: ""
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - name: Check if PR should be documented
       id: check_pr
@@ -123,14 +123,14 @@ runs:
           echo "should_skip=true" >> $GITHUB_OUTPUT
           exit 0
         fi
-        
+
         # Skip if PR title indicates it's a documentation PR
         if [[ "${{ github.event.pull_request.title }}" == "docs: Add documentation for PR"* ]]; then
           echo "skip_reason=PR is already a documentation PR" >> $GITHUB_OUTPUT
           echo "should_skip=true" >> $GITHUB_OUTPUT
           exit 0
         fi
-        
+
         # Skip if PR has 'automated' or 'documentation' label
         if [[ "${{ contains(github.event.pull_request.labels.*.name, 'automated') }}" == "true" ]] || \
            [[ "${{ contains(github.event.pull_request.labels.*.name, 'documentation') }}" == "true" ]]; then
@@ -138,7 +138,7 @@ runs:
           echo "should_skip=true" >> $GITHUB_OUTPUT
           exit 0
         fi
-        
+
         echo "should_skip=false" >> $GITHUB_OUTPUT
 
     - name: Log skip reason
@@ -161,23 +161,23 @@ runs:
       run: |
         # For merged PRs, the PR refs might not exist anymore, so we need to be more careful
         echo "Fetching commits for PR #${{ github.event.pull_request.number }}"
-        
+
         # Try to fetch the PR ref if it exists (might not for merged PRs)
         git fetch origin +refs/pull/${{ github.event.pull_request.number }}/merge:refs/remotes/origin/pr/${{ github.event.pull_request.number }} 2>/dev/null || true
-        
+
         # Fetch the base and head commits directly
         echo "Fetching base commit: ${{ github.event.pull_request.base.sha }}"
         git fetch origin ${{ github.event.pull_request.base.sha }} 2>/dev/null || true
-        
+
         echo "Fetching head commit: ${{ github.event.pull_request.head.sha }}"
         git fetch origin ${{ github.event.pull_request.head.sha }} 2>/dev/null || true
-        
+
         # For merged PRs, also try to fetch from the merge commit
         if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "${{ github.event.pull_request.merge_commit_sha }}" ]; then
           echo "Fetching merge commit: ${{ github.event.pull_request.merge_commit_sha }}"
           git fetch origin ${{ github.event.pull_request.merge_commit_sha }} 2>/dev/null || true
         fi
-        
+
         # Ensure we have the latest from the base branch
         echo "Fetching latest from base branch: ${{ github.event.pull_request.base.ref }}"
         git fetch origin ${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }} || true
@@ -191,7 +191,7 @@ runs:
         BASE_SHA="${{ github.event.pull_request.base.sha }}"
         HEAD_SHA="${{ github.event.pull_request.head.sha }}"
         MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
-        
+
         # For merged PRs, we can use the merge commit to get accurate stats
         if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "$MERGE_SHA" ] && git rev-parse --verify "$MERGE_SHA" >/dev/null 2>&1; then
           echo "Using merge commit for diff: $MERGE_SHA"
@@ -224,12 +224,12 @@ runs:
             FILES_CHANGED=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD | wc -l | tr -d ' ')
           fi
         fi
-        
+
         echo "Lines changed: $LINES_CHANGED"
         echo "Files changed: $FILES_CHANGED"
         echo "lines_changed=$LINES_CHANGED" >> $GITHUB_OUTPUT
         echo "files_changed=$FILES_CHANGED" >> $GITHUB_OUTPUT
-        
+
         if [ "$LINES_CHANGED" -ge "${{ inputs.min_lines_changed }}" ] && [ "$FILES_CHANGED" -ge "${{ inputs.min_files_changed }}" ]; then
           echo "should_document=true" >> $GITHUB_OUTPUT
           echo "Documentation will be generated (lines: $LINES_CHANGED >= ${{ inputs.min_lines_changed }}, files: $FILES_CHANGED >= ${{ inputs.min_files_changed }})"
@@ -256,12 +256,12 @@ runs:
         # Replace placeholder directory paths in the default prompt
         PROMPT="${{ inputs.documentation_prompt }}"
         PROMPT="${PROMPT//docs\/prs/${{ inputs.documentation_directory }}}"
-        
+
         # Also prepare the git diff command based on available commits
         BASE_SHA="${{ github.event.pull_request.base.sha }}"
         HEAD_SHA="${{ github.event.pull_request.head.sha }}"
         MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
-        
+
         # For merged PRs, prefer using the merge commit
         if [ "${{ github.event.pull_request.merged }}" == "true" ] && [ -n "$MERGE_SHA" ] && git rev-parse --verify "$MERGE_SHA" >/dev/null 2>&1; then
           MERGE_PARENT=$(git rev-parse ${MERGE_SHA}^1 2>/dev/null || echo "")
@@ -280,9 +280,9 @@ runs:
             DIFF_CMD="git diff origin/${{ github.event.pull_request.base.ref }}...HEAD"
           fi
         fi
-        
+
         echo "diff_command=$DIFF_CMD" >> $GITHUB_OUTPUT
-        
+
         # Save to output
         echo "prompt<<EOF" >> $GITHUB_OUTPUT
         echo "$PROMPT" >> $GITHUB_OUTPUT
@@ -348,6 +348,6 @@ runs:
           ---
           ---
           🤖 Generated with [Claude Code](https://claude.ai/code)
-          
+
           Co-Authored-By: Claude <noreply@anthropic.com>
         labels: documentation,automated
