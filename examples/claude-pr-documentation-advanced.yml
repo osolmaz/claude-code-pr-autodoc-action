@@ -45,6 +45,10 @@ jobs:
           # Increase timeout for large PRs
           timeout_minutes: "15"
 
+          # Apply labels if they exist in your repository
+          # Leave empty to skip labeling
+          pr_labels: "documentation,automated"
+
           # Add custom instructions for your team's needs
           custom_instructions: |
             Focus on:

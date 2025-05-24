@@ -120,6 +120,7 @@ jobs:
 | `allowed_tools`           | Additional tools for Claude to use (the base GitHub tools will always be included)                                   | No       | ""                                    |
 | `disallowed_tools`        | Tools that Claude should never use                                                                                   | No       | ""                                    |
 | `custom_instructions`     | Additional custom instructions to include in the prompt for Claude                                                   | No       | ""                                    |
+| `pr_labels`               | Comma-separated list of labels to apply to the PR (labels must already exist in the repository)                      | No       | ""                                    |
 
 \*Required when using direct Anthropic API (default and when not using Bedrock or Vertex)
 

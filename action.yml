@@ -108,6 +108,11 @@ inputs:
     required: false
     default: ""
 
+  pr_labels:
+    description: "Comma-separated list of labels to apply to the PR (labels must already exist in the repository)"
+    required: false
+    default: ""
+
 runs:
   using: "composite"
   steps:
@@ -350,4 +355,4 @@ runs:
           🤖 Generated with [Claude Code](https://claude.ai/code)
 
           Co-Authored-By: Claude <noreply@anthropic.com>
-        labels: documentation,automated
+        labels: ${{ inputs.pr_labels }}
