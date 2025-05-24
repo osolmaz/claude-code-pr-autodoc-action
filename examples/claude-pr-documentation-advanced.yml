@@ -1,0 +1,53 @@
+name: Auto-generate PR Documentation (Advanced)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - develop
+
+jobs:
+  generate-documentation:
+    # Only run for merged PRs that don't have the 'skip-docs' label
+    if: |
+      github.event.pull_request.merged == true &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-docs')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    
+    steps:
+      - uses: anthropics/claude-code-pr-autodoc-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          
+          # Require significant changes before documenting
+          min_lines_changed: '100'
+          min_files_changed: '3'
+          
+          # Organize documentation by year/month
+          documentation_directory: 'docs/pull-requests/${{ github.event.pull_request.merged_at | date: "%Y/%m" }}'
+          
+          # Custom tags for better visibility
+          commit_tags: '[skip ci] [auto-doc]'
+          pr_title_tags: '[Documentation]'
+          
+          # Increase timeout for large PRs
+          timeout_minutes: '15'
+          
+          # Add custom instructions for your team's needs
+          custom_instructions: |
+            Focus on:
+            - Business impact and user-facing changes
+            - Technical architecture decisions
+            - Performance implications
+            - Security considerations
+            - Testing coverage
+            
+            For frontend changes, include screenshots if relevant.
+            For API changes, document endpoint modifications.
+            For database changes, note migration requirements.
+            
+            Be concise but thorough. Target audience is both current team members and future developers.

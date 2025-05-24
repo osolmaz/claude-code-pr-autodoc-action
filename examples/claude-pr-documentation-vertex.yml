@@ -1,0 +1,44 @@
+name: Auto-generate PR Documentation (Google Vertex AI)
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  generate-documentation:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write # Required for OIDC
+    
+    steps:
+      # Authenticate to Google Cloud using OIDC
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      
+      # Generate GitHub App token if using custom app
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      
+      # Run the documentation action
+      - uses: anthropics/claude-code-pr-autodoc-action@v1
+        with:
+          # Use Vertex AI model
+          model: "claude-3-7-sonnet@20250219"
+          use_vertex: "true"
+          github_token: ${{ steps.app-token.outputs.token }}
+          
+          # Other configuration options
+          min_lines_changed: '50'
+          documentation_directory: 'docs/prs'
