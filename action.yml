@@ -1,0 +1,177 @@
+name: 'Claude PR Documentation'
+description: 'Automatically generate comprehensive documentation for merged PRs using Claude AI'
+author: 'Your Name'
+branding:
+  icon: 'file-text'
+  color: 'purple'
+
+inputs:
+  anthropic_api_key:
+    description: 'Anthropic API key for Claude'
+    required: true
+  
+  min_lines_changed:
+    description: 'Minimum number of lines changed to trigger documentation'
+    required: false
+    default: '50'
+  
+  min_files_changed:
+    description: 'Minimum number of files changed to trigger documentation'
+    required: false
+    default: '1'
+  
+  documentation_prompt:
+    description: 'Custom prompt for Claude to generate documentation'
+    required: false
+    default: |
+      Create comprehensive documentation for the merged PR #${{ github.event.pull_request.number }}.
+
+      PR Title: ${{ github.event.pull_request.title }}
+      PR Description: ${{ github.event.pull_request.body }}
+      PR Author: ${{ github.event.pull_request.user.login }}
+      Merge Date: ${{ github.event.pull_request.merged_at }}
+
+      Instructions:
+      1. Run: git log --oneline -10 to see recent commits
+      2. Run: git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} to see what changed in PR #${{ github.event.pull_request.number }}
+      3. Create directory if needed: mkdir -p ${{ inputs.documentation_directory }}
+      4. Create a documentation file with filename format: ${{ inputs.documentation_directory }}/YYYY-MM-DD-appropriate-title-for-the-pr.md
+      5. Include this YAML front matter at the top:
+         ---
+         author: Claude
+         date: YYYY-MM-DD
+         title: [descriptive title based on PR]
+         pr_number: ${{ github.event.pull_request.number }}
+         pr_author: ${{ github.event.pull_request.user.login }}
+         ---
+      6. Document:
+         - Purpose and context of the changes
+         - Key modifications made
+         - Technical implementation details
+         - Impact on the system
+         - Any breaking changes or migration notes
+         - Related issues or follow-up tasks
+
+      IMPORTANT: Just create and write the documentation file. Do NOT commit or create any branches/PRs - the workflow will handle that.
+  
+  commit_tags:
+    description: 'Tags to append to the commit message'
+    required: false
+    default: '[skip ci]'
+  
+  pr_title_tags:
+    description: 'Tags to append to the PR title'
+    required: false
+    default: '[skip ci]'
+  
+  documentation_directory:
+    description: 'Directory where documentation will be created'
+    required: false
+    default: 'docs/prs'
+  
+  timeout_minutes:
+    description: 'Timeout for Claude to generate documentation (in minutes)'
+    required: false
+    default: '10'
+  
+  github_token:
+    description: 'GitHub token for creating PR'
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        ref: ${{ github.event.pull_request.base.ref }}
+        token: ${{ inputs.github_token }}
+
+    - name: Check if documentation should be generated
+      id: check_changes
+      shell: bash
+      run: |
+        # Get PR stats
+        LINES_CHANGED=$(git diff --shortstat ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | grep -E "[0-9]+ insertion|[0-9]+ deletion" | sed -E 's/.*([0-9]+) insertion.*([0-9]+) deletion.*/\1 \2/' | awk '{print $1 + $2}' || echo "0")
+        FILES_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} | wc -l | tr -d ' ')
+        
+        echo "Lines changed: $LINES_CHANGED"
+        echo "Files changed: $FILES_CHANGED"
+        echo "lines_changed=$LINES_CHANGED" >> $GITHUB_OUTPUT
+        echo "files_changed=$FILES_CHANGED" >> $GITHUB_OUTPUT
+        
+        if [ "$LINES_CHANGED" -ge "${{ inputs.min_lines_changed }}" ] && [ "$FILES_CHANGED" -ge "${{ inputs.min_files_changed }}" ]; then
+          echo "should_document=true" >> $GITHUB_OUTPUT
+          echo "Documentation will be generated (lines: $LINES_CHANGED >= ${{ inputs.min_lines_changed }}, files: $FILES_CHANGED >= ${{ inputs.min_files_changed }})"
+        else
+          echo "should_document=false" >> $GITHUB_OUTPUT
+          echo "Skipping documentation (lines: $LINES_CHANGED < ${{ inputs.min_lines_changed }} or files: $FILES_CHANGED < ${{ inputs.min_files_changed }})"
+        fi
+
+    - name: Create documentation branch
+      if: steps.check_changes.outputs.should_document == 'true'
+      shell: bash
+      run: |
+        git config --global user.name "Claude[bot]"
+        git config --global user.email "claude-bot@anthropic.com"
+        BRANCH_NAME="docs/pr-${{ github.event.pull_request.number }}-documentation"
+        git checkout -b $BRANCH_NAME
+        echo "DOCS_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
+
+    - name: Generate PR Documentation with Claude
+      if: steps.check_changes.outputs.should_document == 'true'
+      uses: anthropics/claude-code-action@beta
+      with:
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        direct_prompt: ${{ inputs.documentation_prompt }}
+        timeout_minutes: ${{ inputs.timeout_minutes }}
+        allowed_tools: "Bash(git status),Bash(git log --oneline -10),Bash(git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}),Bash(git branch --show-current),Bash(mkdir -p ${{ inputs.documentation_directory }}),Write,View,GlobTool,GrepTool,Edit"
+
+    - name: Clean up unwanted files
+      if: steps.check_changes.outputs.should_document == 'true'
+      shell: bash
+      run: |
+        # Remove any output.txt or other temporary files that might have been created
+        rm -f output.txt
+        rm -f *.tmp
+        rm -f *.log
+        # Only keep files in documentation directory that were intentionally created
+        git clean -fd --exclude=${{ inputs.documentation_directory }}/
+
+    - name: Commit and push documentation
+      if: steps.check_changes.outputs.should_document == 'true'
+      shell: bash
+      run: |
+        # Check if any documentation files were created
+        if [ -n "$(git status --porcelain ${{ inputs.documentation_directory }}/)" ]; then
+          git add ${{ inputs.documentation_directory }}/*.md
+          git commit -m "docs: Add documentation for PR #${{ github.event.pull_request.number }} ${{ inputs.commit_tags }}"
+          git push -u origin ${{ env.DOCS_BRANCH }}
+        else
+          echo "No documentation files created"
+          exit 1
+        fi
+
+    - name: Create Pull Request
+      if: steps.check_changes.outputs.should_document == 'true'
+      uses: peter-evans/create-pull-request@v6
+      with:
+        token: ${{ inputs.github_token }}
+        branch: ${{ env.DOCS_BRANCH }}
+        base: ${{ github.event.pull_request.base.ref }}
+        title: "docs: Add documentation for PR #${{ github.event.pull_request.number }} ${{ inputs.pr_title_tags }}"
+        body: |
+          This PR adds auto-generated documentation for PR #${{ github.event.pull_request.number }}.
+
+          ## Original PR Details
+          - **Title:** ${{ github.event.pull_request.title }}
+          - **Author:** @${{ github.event.pull_request.user.login }}
+          - **Merged:** ${{ github.event.pull_request.merged_at }}
+          - **Lines Changed:** ${{ steps.check_changes.outputs.lines_changed }}
+          - **Files Changed:** ${{ steps.check_changes.outputs.files_changed }}
+
+          ---
+          *Auto-generated by Claude*
+        labels: documentation,automated

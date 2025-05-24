@@ -1,0 +1,50 @@
+name: Auto-generate PR Documentation with Claude
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - develop
+
+jobs:
+  generate-documentation:
+    # Only run when PR is merged (not just closed)
+    # AND the PR was not created by Claude[bot] or any bot user
+    # AND the PR doesn't have the "skip-docs" label
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.type != 'Bot' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-docs')
+    
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    
+    steps:
+      - name: Generate PR Documentation
+        uses: your-username/claude-pr-documentation@v1
+        with:
+          # Required: Your Anthropic API key
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          
+          # Optional: Minimum thresholds (defaults shown)
+          min_lines_changed: '50'
+          min_files_changed: '1'
+          
+          # Optional: Output configuration
+          documentation_directory: 'docs/prs'
+          
+          # Optional: Tags for commits and PRs
+          commit_tags: '[skip ci]'
+          pr_title_tags: '[skip ci]'
+          
+          # Optional: Timeout for Claude
+          timeout_minutes: '10'
+          
+          # Optional: Custom documentation prompt
+          # documentation_prompt: |
+          #   Your custom prompt here...
