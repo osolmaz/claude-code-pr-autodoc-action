@@ -243,7 +243,7 @@ runs:
           echo "Skipping documentation (lines: $LINES_CHANGED < ${{ inputs.min_lines_changed }} or files: $FILES_CHANGED < ${{ inputs.min_files_changed }})"
         fi
 
-    - name: Create documentation branch
+    - name: Set up git configuration
       if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       shell: bash
       run: |
@@ -253,9 +253,6 @@ runs:
         # Use timestamp to create unique branch names for each run
         TIMESTAMP=$(date +%Y%m%d-%H%M%S)
         BRANCH_NAME="docs/pr-${{ github.event.pull_request.number }}-${TIMESTAMP}"
-        
-        # Create a fresh branch from the current state
-        git checkout -b $BRANCH_NAME
         echo "DOCS_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
 
     - name: Prepare documentation prompt
@@ -323,15 +320,14 @@ runs:
         # Only keep files in documentation directory that were intentionally created
         git clean -fd --exclude=${{ inputs.documentation_directory }}/
 
-    - name: Commit and push documentation
+    - name: Stage documentation files
       if: steps.check_pr.outputs.should_skip != 'true' && steps.check_changes.outputs.should_document == 'true'
       shell: bash
       run: |
         # Check if any documentation files were created
         if [ -n "$(git status --porcelain ${{ inputs.documentation_directory }}/)" ]; then
           git add ${{ inputs.documentation_directory }}/*.md
-          git commit -m "docs: Add documentation for PR #${{ github.event.pull_request.number }} ${{ inputs.commit_tags }}"
-          git push -u origin ${{ env.DOCS_BRANCH }}
+          echo "Documentation files staged for commit"
         else
           echo "No documentation files created"
           exit 1
@@ -344,6 +340,9 @@ runs:
         token: ${{ inputs.github_token }}
         branch: ${{ env.DOCS_BRANCH }}
         base: ${{ github.event.pull_request.base.ref }}
+        commit-message: "docs: Add documentation for PR #${{ github.event.pull_request.number }} ${{ inputs.commit_tags }}"
+        committer: "Claude Code[bot] <noreply@anthropic.com>"
+        author: "Claude Code[bot] <noreply@anthropic.com>"
         title: "docs: Add documentation for PR #${{ github.event.pull_request.number }} ${{ inputs.pr_title_tags }}"
         body: |
           This PR adds auto-generated documentation for PR #${{ github.event.pull_request.number }}.
